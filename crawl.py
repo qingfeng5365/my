@@ -6,11 +6,15 @@ import os
 import shutil
 import datetime
 import csv
+import time
+
+
+begin_time=time.time()
 
 
 #读取数据
-new_csv = pd.read_csv('https://cdn.jsdelivr.net/gh/qingfeng5365/my@master/csv/new.csv',low_memory = False)
-old_csv = pd.read_csv('https://cdn.jsdelivr.net/gh/qingfeng5365/my@master/csv/old.csv',low_memory = False)
+new_csv = pd.read_csv('https://cdn.jsdelivr.net/gh/qingfeng5365/my/csv/new.csv',low_memory = False)
+old_csv = pd.read_csv('https://cdn.jsdelivr.net/gh/qingfeng5365/my/csv/old.csv',low_memory = False)
 #创建DataFrame
 new_df = pd.DataFrame(new_csv)
 old_df = pd.DataFrame(old_csv)
@@ -63,11 +67,12 @@ for room,ip in old_pro.items():
     if ip:
         url="http://admin:12345@"+ip+"/Streaming/channels/1/picture"
         fname = datetime.datetime.now().strftime('%F %T').replace(":","-").replace(" ", "_")
-        path="image/old/"+room+"pro/"+fname+".jpg"
+        path="image/old/"+room+"/pro/"+fname+".jpg"
         try:
             crawling(url,path)
         except:
             error_log(room,url,fname,"pro")
             
             
-            
+end_time=time.time()
+print(end_time-begin_time)
