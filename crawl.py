@@ -1,61 +1,35 @@
 #导入模块
 import pandas as pd
-import numpy as np
 import requests
 import os
-import shutil
 import datetime
 import csv
 import time
-import asyncio
-import aiohttp
-import aiofiles
+from concurrent.futures import ThreadPoolExecutor
 
-
-#异常记录
-async def error_log(room,url,fname,pos):
-    async with aiofiles.open('error.csv',mode='a',encoding='utf-8',newline='') as f:
-        csv_writer=csv.writer(f)
-        await csv_writer.writerow([room,pos,url,fname])
-            
-#爬取图片
-async def crawling (room,url,fname,path,pos):
+#线程池
+def main(ip,room,pos):
+    url=f"http://admin:12345@{ip}/Streaming/channels/1/picture"
+    fname = datetime.datetime.now().strftime('%F %T').replace(":","-").replace(" ", "_")
     try:
-        async with aiohttp.ClientSession() as session:
-            async with session.get(url,timeout=1) as resp:
-                async with aiofiles.open(path,'wb')as f:
-                    await f.write(await resp.content.read())
+        with requests.get(url,timeout=0.5) as resp: 
+            if (resp.status_code!=200):
+                fname = datetime.datetime.now().strftime('%F %T').replace(":","-").replace(" ", "_")
+                with open('401.csv',mode='a',encoding='utf-8',newline='') as f:
+                    csv_writer=csv.writer(f)
+                    csv_writer.writerow([room,pos,resp.status_code,url,fname])
+            else:
+                path="image/old/"+room+"/"+pos+"/"+fname+".jpg"
+                with open(path,'wb')as f:
+                    f.write(resp.content)
     except:
-        await error_log(room,url,fname,pos)
+        with open('error.csv',mode='a',encoding='utf-8',newline='') as f:
+            csv_writer=csv.writer(f)
+            csv_writer.writerow([room,pos,url,fname])
             
-
-async def main():
-    
-    tasks1=[]
-    for room,ip in old_back.items():
-        if ip:
-            url="http://admin:12345@"+ip+"/Streaming/channels/1/picture"
-            fname = datetime.datetime.now().strftime('%F %T').replace(":","-").replace(" ", "_")
-            path="image/old/"+room+"/back/"+fname+".jpg"
-            t1=asyncio.create_task(crawling(room,url,fname,path,"back"))
-            tasks1.append(t1)
-    await asyncio.wait(tasks1)
-    
-    tasks2=[]
-    for room,ip in old_pro.items():
-        if ip:
-            url="http://admin:12345@"+ip+"/Streaming/channels/1/picture"
-            fname = datetime.datetime.now().strftime('%F %T').replace(":","-").replace(" ", "_")
-            path="image/old/"+room+"/pro/"+fname+".jpg"
-            t2=asyncio.create_task(crawling(room,url,fname,path,"pro"))
-            tasks2.append(t2)
-    await asyncio.wait(tasks2)    
-    
-    
 if __name__=="__main__":
     
     t1=time.time()
-    
     #读取数据
     new_csv = pd.read_csv('https://cdn.jsdelivr.net/gh/qingfeng5365/my/csv/new.csv',low_memory = False)
     old_csv = pd.read_csv('https://cdn.jsdelivr.net/gh/qingfeng5365/my/csv/old.csv',low_memory = False)
@@ -83,7 +57,16 @@ if __name__=="__main__":
     #清空日志文件
     with open('error.csv',mode='w',encoding='utf-8',newline='') as f:  
         f.truncate()
-        
-    await main()
+    with open('401.csv',mode='w',encoding='utf-8',newline='') as f:  
+        f.truncate()
+    #线程池
+    with ThreadPoolExecutor(50) as t:
+        for room,ip in old_back.items():
+            if ip:
+                t.submit(main,ip,room,"back")
+    with ThreadPoolExecutor(50) as t:
+        for room,ip in old_pro.items():
+            if ip:
+                t.submit(main,ip,room,"pro")
     t2=time.time()
     print(t2-t1)
