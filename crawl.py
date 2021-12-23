@@ -5,17 +5,38 @@ import os
 import datetime
 import csv
 import time
+from io import StringIO
+from requests.auth import HTTPDigestAuth
 from concurrent.futures import ThreadPoolExecutor
 
-#线程池
-def main(ip,room,pos):
+
+#线程池new
+def new(ip,room,pos):
+    url=f"http://{ip}/cgi-bin/snapshot.cgichannel=1"
+    fname = datetime.datetime.now().strftime('%F %T').replace(":","-").replace(" ", "_")
+    try:
+        with requests.get(url,timeout=5,auth=HTTPDigestAuth("admin","mzdx1234")) as resp: 
+            if (resp.status_code!=200):
+                with open('error_code.csv',mode='a',encoding='utf-8',newline='') as f:
+                    csv_writer=csv.writer(f)
+                    csv_writer.writerow([room,pos,resp.status_code,url,fname])
+            else:
+                path="image/new/"+room+"/"+pos+"/"+fname+".jpg"
+                with open(path,'wb')as f:
+                    f.write(resp.content)
+    except:
+        with open('error_timeout.csv',mode='a',encoding='utf-8',newline='') as f:
+            csv_writer=csv.writer(f)
+            csv_writer.writerow([room,pos,url,fname])
+
+#线程池old
+def old(ip,room,pos):
     url=f"http://admin:12345@{ip}/Streaming/channels/1/picture"
     fname = datetime.datetime.now().strftime('%F %T').replace(":","-").replace(" ", "_")
     try:
-        with requests.get(url,timeout=0.5) as resp: 
+        with requests.get(url,timeout=1) as resp: 
             if (resp.status_code!=200):
-                fname = datetime.datetime.now().strftime('%F %T').replace(":","-").replace(" ", "_")
-                with open('401.csv',mode='a',encoding='utf-8',newline='') as f:
+                with open('error_code.csv',mode='a',encoding='utf-8',newline='') as f:
                     csv_writer=csv.writer(f)
                     csv_writer.writerow([room,pos,resp.status_code,url,fname])
             else:
@@ -23,7 +44,7 @@ def main(ip,room,pos):
                 with open(path,'wb')as f:
                     f.write(resp.content)
     except:
-        with open('error.csv',mode='a',encoding='utf-8',newline='') as f:
+        with open('error_timeout.csv',mode='a',encoding='utf-8',newline='') as f:
             csv_writer=csv.writer(f)
             csv_writer.writerow([room,pos,url,fname])
             
@@ -31,8 +52,13 @@ if __name__=="__main__":
     
     t1=time.time()
     #读取数据
-    new_csv = pd.read_csv('https://cdn.jsdelivr.net/gh/qingfeng5365/my/csv/new.csv',low_memory = False)
-    old_csv = pd.read_csv('https://cdn.jsdelivr.net/gh/qingfeng5365/my/csv/old.csv',low_memory = False)
+    url1='https://api.fernvenue.com/gh/qingfeng5365/my/master/csv/new.csv'
+    url2='https://api.fernvenue.com/gh/qingfeng5365/my/master/csv/old.csv'
+    headers = {'User-Agent':'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:95.0) Gecko/20100101 Firefox/95.0'}
+    s1=requests.get(url1,headers=headers).text
+    s2=requests.get(url2,headers=headers).text
+    new_csv = pd.read_csv(StringIO(s1))
+    old_csv = pd.read_csv(StringIO(s2))
     #创建DataFrame
     new_df = pd.DataFrame(new_csv)
     old_df = pd.DataFrame(old_csv)
@@ -55,18 +81,28 @@ if __name__=="__main__":
             os.makedirs("image/old/"+i+"/pro")
     
     #清空日志文件
-    with open('error.csv',mode='w',encoding='utf-8',newline='') as f:  
+    with open('error_timeout.csv',mode='w',encoding='utf-8',newline='') as f:  
         f.truncate()
-    with open('401.csv',mode='w',encoding='utf-8',newline='') as f:  
+    with open('error_code.csv',mode='w',encoding='utf-8',newline='') as f:  
         f.truncate()
-    #线程池
+        
+    #线程池new
+    with ThreadPoolExecutor(50) as t:
+        for room,ip in new_back.items():
+            if ip:
+                t.submit(new,ip,room,"back")
+    with ThreadPoolExecutor(50) as t:
+        for room,ip in new_pro.items():
+            if ip:
+                t.submit(new,ip,room,"pro")
+    #线程池old
     with ThreadPoolExecutor(50) as t:
         for room,ip in old_back.items():
             if ip:
-                t.submit(main,ip,room,"back")
+                t.submit(old,ip,room,"back")
     with ThreadPoolExecutor(50) as t:
         for room,ip in old_pro.items():
             if ip:
-                t.submit(main,ip,room,"pro")
+                t.submit(old,ip,room,"pro")
     t2=time.time()
     print(t2-t1)
