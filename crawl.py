@@ -15,7 +15,7 @@ def new(ip,room,pos):
     url=f"http://{ip}/cgi-bin/snapshot.cgichannel=1"
     fname = datetime.datetime.now().strftime('%F %T').replace(":","-").replace(" ", "_")
     try:
-        with requests.get(url,timeout=5,auth=HTTPDigestAuth("admin","mzdx1234")) as resp: 
+        with requests.get(url,auth=HTTPDigestAuth("admin","mzdx1234")) as resp: 
             if (resp.status_code!=200):
                 with open('error_code.csv',mode='a',encoding='utf-8',newline='') as f:
                     csv_writer=csv.writer(f)
@@ -85,24 +85,20 @@ if __name__=="__main__":
         f.truncate()
     with open('error_code.csv',mode='w',encoding='utf-8',newline='') as f:  
         f.truncate()
-        
-    #线程池new
-    with ThreadPoolExecutor(50) as t:
-        for room,ip in new_back.items():
-            if ip:
-                t.submit(new,ip,room,"back")
-    with ThreadPoolExecutor(50) as t:
-        for room,ip in new_pro.items():
-            if ip:
-                t.submit(new,ip,room,"pro")
-    #线程池old
-    with ThreadPoolExecutor(50) as t:
+
+    #线程池
+    with ThreadPoolExecutor(30) as t:
         for room,ip in old_back.items():
             if ip:
                 t.submit(old,ip,room,"back")
-    with ThreadPoolExecutor(50) as t:
         for room,ip in old_pro.items():
             if ip:
                 t.submit(old,ip,room,"pro")
+        for room,ip in new_back.items():
+            if ip:
+                t.submit(new,ip,room,"back")
+        for room,ip in new_pro.items():
+            if ip:
+                t.submit(new,ip,room,"pro")
     t2=time.time()
     print(t2-t1)
